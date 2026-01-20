@@ -90,13 +90,22 @@ st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 BASE_DIR = os.environ.get("UIDAI_DATA_DIR", "")
 
 DEFAULT_ENROLMENT = [
-    r"enrollment_all (1).csv"
+    r"enrollment_all (1)_1.csv",
+    r"enrollment_all (1)_2.csv",
+    r"enrollment_all (1)_3.csv"
 ]
 DEFAULT_BIOMETRIC = [
-    r"mightymerge.io__xzzeu4zp.csv"
+    r"mightymerge.io__xzzeu4zp (1)_1.csv",
+    r"mightymerge.io__xzzeu4zp (1)_2.csv",
+    r"mightymerge.io__xzzeu4zp (1)_3.csv",
+    r"mightymerge.io__xzzeu4zp (1)_4.csv"
 ]
 DEFAULT_DEMOGRAPHIC = [
-    r"demo_all (1).csv"
+    r"demo_all (1)_1.csv",
+    r"demo_all (1)_2.csv",
+    r"demo_all (1)_3.csv",
+    r"demo_all (1)_4.csv",
+    r"demo_all (1)_5.csv"
 ]
 
 
