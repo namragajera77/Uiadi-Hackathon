@@ -6,11 +6,10 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-# Plotly for interactive charts
+# Plotly
 try:
     import plotly.express as px
     import plotly.graph_objects as go
-
     PLOTLY_AVAILABLE = True
 except Exception:
     PLOTLY_AVAILABLE = False
@@ -27,93 +26,58 @@ st.set_page_config(
 # ------------------------------ Styling ------------------------------
 CUSTOM_CSS = """
 <style>
-/* Main background */
-.main {
-    background: linear-gradient(180deg, rgba(248,250,252,1) 0%, rgba(255,255,255,1) 100%);
-}
-
-/* Metric cards */
-
-.kpi {min-height: 120px; display:flex; flex-direction:column; justify-content:center;}
+.main {background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);}
 
 .kpi {
     border: 1px solid rgba(2,6,23,0.12);
-    background: rgba(255,255,255,0.95);
+    background: white;
     border-radius: 18px;
     padding: 18px 20px;
     box-shadow: 0 6px 20px rgba(2,6,23,0.05);
 }
+.kpi .label {font-size: 12px; color:#334155;}
+.kpi .value {font-size: 30px; font-weight: 900;}
+.kpi .help  {font-size: 12px; color:#64748b;}
 
-.kpi .label {font-size: 12px; opacity: 0.9; color: #0f172a;}
-.kpi .value {font-size: 30px; font-weight: 900; margin-top: 4px; color: #0f172a;}
-.kpi .help  {font-size: 12px; opacity: 0.8; margin-top: 6px; color: #334155;}
-
-/* Improve readability in dark mode */
-@media (prefers-color-scheme: dark) {
-  .main {background: linear-gradient(180deg, #0b1220 0%, #020617 100%);}
-  .section {background: rgba(15,23,42,0.75); border: 1px solid rgba(148,163,184,0.25);}
-  .kpi {background: rgba(15,23,42,0.85); border: 1px solid rgba(148,163,184,0.25);}
-  .kpi .label, .kpi .value {color: #f8fafc;}
-  .kpi .help {color: #cbd5e1;}
-  div[data-testid="stMetric"] {background: rgba(15,23,42,0.85) !important; border-radius: 18px; padding: 10px 14px; border: 1px solid rgba(148,163,184,0.25);} 
-}
-
-/* Section headers */
 .section {
     border: 1px solid rgba(2,6,23,0.08);
-    background: rgba(255,255,255,0.9);
+    background: white;
     border-radius: 22px;
-    padding: 18px 18px 4px 18px;
+    padding: 18px;
     box-shadow: 0 6px 20px rgba(2,6,23,0.05);
 }
 
-/* Sidebar */
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, rgba(15,23,42,1) 0%, rgba(2,6,23,1) 100%);
+    background: linear-gradient(180deg, #0f172a 0%, #020617 100%);
 }
-section[data-testid="stSidebar"] * {color: #e5e7eb;}
-section[data-testid="stSidebar"] .stMarkdown p {color: #e5e7eb;}
-
-/* Buttons */
-.stDownloadButton button {
-    border-radius: 999px !important;
-}
+section[data-testid="stSidebar"] * {color:#e5e7eb;}
 </style>
 """
-
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 
-# ------------------------------ File discovery ------------------------------
-# In your PC, you can set UIDAI_DATA_DIR env var to your folder e.g.
-# setx UIDAI_DATA_DIR "D:\\Garv Pendrive\\UIDAI"
+# ------------------------------ File Discovery ------------------------------
 BASE_DIR = os.environ.get("UIDAI_DATA_DIR", "")
 
-DEFAULT_ENROLMENT = [
-    r"enrollment_all (1).csv",
-    r"enrollment_all (1)_2.csv",
-    r"enrollment_all (1)_3.csv"
+# ------------------------------ Fixed File Names ------------------------------
+
+ENROLMENT_FILES = [
+    "enrollment_all (1).csv",
+    "enrollment_all (1)_2.csv",
+    "enrollment_all (1)_3.csv",
 ]
-DEFAULT_BIOMETRIC = [
-    r"mightymerge.io__xzzeu4zp (1)_1.csv",
-    r"mightymerge.io__xzzeu4zp (1)_2.csv",
-    r"mightymerge.io__xzzeu4zp (1)_3.csv",
-    r"mightymerge.io__xzzeu4zp (1)_4.csv"
+
+DEMOGRAPHIC_FILES = [
+    "demo_all (1).csv",
+    "demo_all (1)_2.csv",
 ]
-DEFAULT_DEMOGRAPHIC = [
-    r"demo_all (1)_1.csv",
-    r"demo_all (1)_2.csv",
-    r"demo_all (1)_3.csv",
-    r"demo_all (1)_4.csv",
-    r"demo_all (1)_5.csv"
+
+BIOMETRIC_FILES = [
+    "mightymerge.io__xzzeu4zp.csv",
+    "mightymerge.io__xzzeu4zp (1)_2.csv",
 ]
 
 
-def _auto_discover(pattern: str) -> list[str]:
-    if not BASE_DIR:
-        return []
-    paths = sorted(glob.glob(os.path.join(BASE_DIR, pattern)))
-    return paths
 
 
 ENROLMENT_FILES = _auto_discover("api_data_aadhar_enrolment_*.csv") or DEFAULT_ENROLMENT
@@ -121,16 +85,14 @@ BIOMETRIC_FILES = _auto_discover("api_data_aadhar_biometric_*.csv") or DEFAULT_B
 DEMOGRAPHIC_FILES = _auto_discover("api_data_aadhar_demographic_*.csv") or DEFAULT_DEMOGRAPHIC
 
 
-# ------------------------------ Data loaders ------------------------------
+# ------------------------------ Data Utils ------------------------------
 @st.cache_data(show_spinner=False)
-def load_concat(paths: list[str]) -> pd.DataFrame:
+def load_concat(paths):
     dfs = []
     for p in paths:
-        if os.path.exists(p):
+        if p and os.path.exists(p):
             dfs.append(pd.read_csv(p))
-    if not dfs:
-        return pd.DataFrame()
-    return pd.concat(dfs, ignore_index=True)
+    return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
 
 
 def normalize_common(df: pd.DataFrame) -> pd.DataFrame:
@@ -138,55 +100,63 @@ def normalize_common(df: pd.DataFrame) -> pd.DataFrame:
         return df
 
     df = df.copy()
-    # Normalize columns
-    df.columns = [c.strip() for c in df.columns]
 
-    # Parse date
+    # 🔑 CRITICAL FIX: normalize column names
+    df.columns = (
+        df.columns
+        .str.strip()
+        .str.lower()
+        .str.replace(" ", "_")
+        .str.replace("-", "_")
+    )
+
     if "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"], format="%d-%m-%Y", errors="coerce")
+        df["date"] = pd.to_datetime(df["date"], errors="coerce", dayfirst=True)
 
-    # Normalize location fields
     for col in ["state", "district"]:
         if col in df.columns:
             df[col] = df[col].astype(str).str.strip()
 
     if "pincode" in df.columns:
-        df["pincode"] = df["pincode"].astype(str).str.replace(".0", "", regex=False).str.zfill(6)
+        df["pincode"] = (
+            df["pincode"]
+            .astype(str)
+            .str.replace(".0", "", regex=False)
+            .str.zfill(6)
+        )
 
-    df["month"] = df["date"].dt.to_period("M").astype(str)
+    if "date" in df.columns:
+        df["month"] = df["date"].dt.to_period("M").astype(str)
+
     return df
 
 
-def add_total_column(df: pd.DataFrame, value_cols: list[str], total_name: str = "total") -> pd.DataFrame:
+def add_total_column(df: pd.DataFrame, value_cols, total_name):
     df = df.copy()
-    # Check which columns exist
-    existing_cols = [col for col in value_cols if col in df.columns]
-    missing_cols = [col for col in value_cols if col not in df.columns]
-    
-    if missing_cols:
-        st.warning(f"Missing columns: {', '.join(missing_cols)}. Available columns: {', '.join(df.columns.tolist())}")
-    
-    # Only process existing columns
-    for col in existing_cols:
-        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
-    
-    # Calculate total from existing columns only
-    if existing_cols:
-        df[total_name] = df[existing_cols].sum(axis=1)
-    else:
-        df[total_name] = 0
-    
+
+    # 🔒 SAFE: ensure columns exist
+    for col in value_cols:
+        if col not in df.columns:
+            df[col] = 0
+
+    df[value_cols] = (
+        df[value_cols]
+        .apply(pd.to_numeric, errors="coerce")
+        .fillna(0)
+        .astype(int)
+    )
+
+    df[total_name] = df[value_cols].sum(axis=1)
     return df
 
 
-# ------------------------------ KPI Card ------------------------------
-def kpi(label: str, value: str, help_text: str = ""):
+def kpi(label, value, help_text=""):
     st.markdown(
         f"""
         <div class="kpi">
             <div class="label">{label}</div>
             <div class="value">{value}</div>
-            {f'<div class="help">{help_text}</div>' if help_text else ''}
+            {f"<div class='help'>{help_text}</div>" if help_text else ""}
         </div>
         """,
         unsafe_allow_html=True,
@@ -195,88 +165,45 @@ def kpi(label: str, value: str, help_text: str = ""):
 
 # ------------------------------ Sidebar ------------------------------
 st.title("🪪 UIDAI Aadhaar Analytics Dashboard")
-st.caption("User-friendly Streamlit dashboard for **Enrolment + Demographic + Biometric** Aadhaar datasets.")
+st.caption("Enrolment • Demographic • Biometric Analytics")
 
 with st.sidebar:
-    st.markdown("## ⚙️ Controls")
     dataset = st.radio(
-        "Choose dataset",
+        "Choose Dataset",
         ["Enrolment", "Demographic", "Biometric", "Combined View"],
-        index=0,
     )
 
     st.markdown("---")
-    st.markdown("### 📦 Data Source")
     load_mode = st.selectbox(
-        "Load mode",
-        [
-            "Use predefined files (recommended)",
-            "Upload a single CSV (for testing)",
-        ],
-        index=0,
+        "Data Source",
+        ["Use predefined files", "Upload single CSV"],
     )
 
     uploaded_path = None
-    if load_mode == "Upload a single CSV (for testing)":
-        up = st.file_uploader("Upload CSV file", type=["csv"])
-        if up is not None:
-            uploaded_path = "/tmp/uploaded.csv"
+    if load_mode == "Upload single CSV":
+        up = st.file_uploader("Upload CSV", type="csv")
+        if up:
+            uploaded_path = "/tmp/upload.csv"
             pd.read_csv(up).to_csv(uploaded_path, index=False)
 
-    st.markdown("---")
-    st.markdown("### 🎛️ Filters")
 
-
-# ------------------------------ Load selected dataset ------------------------------
+# ------------------------------ Load Data ------------------------------
 if dataset == "Enrolment":
-    paths = [uploaded_path] if uploaded_path else ENROLMENT_FILES
-    df = normalize_common(load_concat(paths))
-    
-    # Show available columns for debugging
-    if df.empty:
-        st.error(f"No data loaded from files: {paths}")
-        st.stop()
-    
-    with st.expander("📋 Available Columns (Debug Info)"):
-        st.write(f"Columns in dataset: {', '.join(df.columns.tolist())}")
-    
-    value_cols = ["age_0_5", "age_5_17", "age_18_greater"]
-    df = add_total_column(df, value_cols, "total_enrolments")
+    df = normalize_common(load_concat([uploaded_path] if uploaded_path else ENROLMENT_FILES))
+    df = add_total_column(df, ["age_0_5", "age_5_17", "age_18_greater"], "total_enrolments")
     metric_col = "total_enrolments"
 
 elif dataset == "Demographic":
-    paths = [uploaded_path] if uploaded_path else DEMOGRAPHIC_FILES
-    df = normalize_common(load_concat(paths))
-    
-    if df.empty:
-        st.error(f"No data loaded from files: {paths}")
-        st.stop()
-    
-    with st.expander("📋 Available Columns (Debug Info)"):
-        st.write(f"Columns in dataset: {', '.join(df.columns.tolist())}")
-    
-    value_cols = ["demo_age_5_17", "demo_age_17_"]
-    df = add_total_column(df, value_cols, "total_demographic")
+    df = normalize_common(load_concat([uploaded_path] if uploaded_path else DEMOGRAPHIC_FILES))
+    df = add_total_column(df, ["demo_age_5_17", "demo_age_17_"], "total_demographic")
     metric_col = "total_demographic"
 
 elif dataset == "Biometric":
-    paths = [uploaded_path] if uploaded_path else BIOMETRIC_FILES
-    df = normalize_common(load_concat(paths))
-    
-    if df.empty:
-        st.error(f"No data loaded from files: {paths}")
-        st.stop()
-    
-    with st.expander("📋 Available Columns (Debug Info)"):
-        st.write(f"Columns in dataset: {', '.join(df.columns.tolist())}")
-    
-    value_cols = ["bio_age_5_17", "bio_age_17_"]
-    df = add_total_column(df, value_cols, "total_biometric")
+    df = normalize_common(load_concat([uploaded_path] if uploaded_path else BIOMETRIC_FILES))
+    df = add_total_column(df, ["bio_age_5_17", "bio_age_17_"], "total_biometric")
     metric_col = "total_biometric"
 
 else:
-    # Combined view
-    # Aggregate each dataset to common key and merge
     enr = add_total_column(
         normalize_common(load_concat(ENROLMENT_FILES)),
         ["age_0_5", "age_5_17", "age_18_greater"],
@@ -294,64 +221,34 @@ else:
     )
 
     key = ["date", "state", "district", "pincode", "month"]
-    enr_agg = enr.groupby(key, as_index=False)["total_enrolments"].sum()
-    dem_agg = dem.groupby(key, as_index=False)["total_demographic"].sum()
-    bio_agg = bio.groupby(key, as_index=False)["total_biometric"].sum()
-
-    df = enr_agg.merge(dem_agg, on=key, how="outer").merge(bio_agg, on=key, how="outer")
-    df[["total_enrolments", "total_demographic", "total_biometric"]] = df[[
-        "total_enrolments",
-        "total_demographic",
-        "total_biometric",
-    ]].fillna(0).astype(int)
-
-    df = df.sort_values("date")
-    metric_col = "total_enrolments"  # default for charts
+    df = (
+        enr.groupby(key, as_index=False)["total_enrolments"].sum()
+        .merge(dem.groupby(key, as_index=False)["total_demographic"].sum(), on=key, how="outer")
+        .merge(bio.groupby(key, as_index=False)["total_biometric"].sum(), on=key, how="outer")
+        .fillna(0)
+    )
+    metric_col = "total_enrolments"
 
 
 if df.empty:
-    st.error("No data found. Please check your file paths or upload a CSV.")
+    st.error("No data loaded.")
     st.stop()
 
 
-# ------------------------------ Filters (depend on data) ------------------------------
-min_date = df["date"].min()
-max_date = df["date"].max()
+# ------------------------------ Filters ------------------------------
+min_date, max_date = df["date"].min(), df["date"].max()
 
 with st.sidebar:
     date_range = st.date_input(
-        "📅 Date range",
-        value=(min_date.date(), max_date.date()),
-        min_value=min_date.date(),
-        max_value=max_date.date(),
+        "Date Range",
+        (min_date.date(), max_date.date()),
     )
 
-    state_opts = sorted(df["state"].dropna().unique().tolist())
-    states = st.multiselect("🏙️ State", options=state_opts, default=[])
-
-    if states:
-        district_opts = sorted(df.loc[df["state"].isin(states), "district"].dropna().unique().tolist())
-    else:
-        district_opts = sorted(df["district"].dropna().unique().tolist())
-    districts = st.multiselect("🏘️ District", options=district_opts, default=[])
-
-    pin = st.text_input("📮 Pincode (optional)", value="", placeholder="e.g. 560043")
-
-    st.markdown("---")
-    st.markdown("### 📊 Chart Settings")
-    top_n = st.slider("Top N", 5, 30, 10)
-    group_view = st.selectbox("Group by", ["State", "District", "Pincode"], index=0)
-
-    if dataset == "Combined View":
-        metric_choice = st.selectbox(
-            "Metric",
-            ["total_enrolments", "total_demographic", "total_biometric"],
-            index=0,
-        )
-        metric_col = metric_choice
+    states = st.multiselect("State", sorted(df["state"].dropna().unique()))
+    districts = st.multiselect("District", sorted(df["district"].dropna().unique()))
+    pin = st.text_input("Pincode")
 
 
-# Apply filters
 fdf = df.copy()
 start, end = date_range
 fdf = fdf[(fdf["date"].dt.date >= start) & (fdf["date"].dt.date <= end)]
@@ -360,146 +257,39 @@ if states:
     fdf = fdf[fdf["state"].isin(states)]
 if districts:
     fdf = fdf[fdf["district"].isin(districts)]
-if pin.strip():
-    fdf = fdf[fdf["pincode"].astype(str).str.contains(pin.strip())]
+if pin:
+    fdf = fdf[fdf["pincode"].str.contains(pin)]
 
 
-# ------------------------------ Tabs Layout ------------------------------
-TAB1, TAB2, TAB3 = st.tabs(["📌 Overview", "📈 Trends", "🧾 Data"])
+# ------------------------------ Tabs ------------------------------
+tab1, tab2, tab3 = st.tabs(["📌 Overview", "📈 Trends", "🧾 Data"])
 
 
-# ------------------------------ Overview ------------------------------
-with TAB1:
+with tab1:
     st.markdown('<div class="section">', unsafe_allow_html=True)
+    c1, c2, c3, c4 = st.columns(4)
 
-    # KPIs row
-    c1, c2, c3, c4, c5 = st.columns([1.1, 1.3, 1.1, 1.1, 1.1])
-
-    with c1:
-        kpi("Records", f"{len(fdf):,}")
-
-    with c2:
-        kpi("Total", f"{int(fdf[metric_col].sum()):,}", help_text=f"Metric: {metric_col}")
-
-    with c3:
-        kpi("States", f"{fdf['state'].nunique():,}")
-
-    with c4:
-        kpi("Districts", f"{fdf['district'].nunique():,}")
-
-    with c5:
-        kpi("Pincodes", f"{fdf['pincode'].nunique():,}")
-
-    st.markdown("---")
-
-    left, right = st.columns([1.3, 1])
-
-    with left:
-        st.subheader("🏆 Top contributors")
-        group_col = {"State": "state", "District": "district", "Pincode": "pincode"}[group_view]
-        rank = (
-            fdf.groupby(group_col, as_index=False)[metric_col]
-            .sum()
-            .sort_values(metric_col, ascending=False)
-            .head(top_n)
-        )
-
-        if PLOTLY_AVAILABLE:
-            fig = px.bar(rank, x=metric_col, y=group_col, orientation="h")
-            fig.update_layout(height=420, yaxis_title="", xaxis_title=metric_col)
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.dataframe(rank, use_container_width=True)
-
-    with right:
-        st.subheader("🧩 Distribution")
-        if dataset == "Enrolment":
-            dist = fdf[["age_0_5", "age_5_17", "age_18_greater"]].sum().rename(
-                {"age_0_5": "0-5", "age_5_17": "5-17", "age_18_greater": "18+"}
-            )
-        elif dataset == "Demographic":
-            dist = fdf[["demo_age_5_17", "demo_age_17_"]].sum().rename(
-                {"demo_age_5_17": "5-17", "demo_age_17_": "17+"}
-            )
-        elif dataset == "Biometric":
-            dist = fdf[["bio_age_5_17", "bio_age_17_"]].sum().rename(
-                {"bio_age_5_17": "5-17", "bio_age_17_": "17+"}
-            )
-        else:
-            dist = pd.Series(
-                {
-                    "Enrolment": int(fdf["total_enrolments"].sum()),
-                    "Demographic": int(fdf["total_demographic"].sum()),
-                    "Biometric": int(fdf["total_biometric"].sum()),
-                }
-            )
-
-        if PLOTLY_AVAILABLE:
-            dist_df = dist.reset_index()
-            dist_df.columns = ["group", "count"]
-            pie = px.pie(dist_df, names="group", values="count", hole=0.55)
-            pie.update_layout(height=420)
-            st.plotly_chart(pie, use_container_width=True)
-        else:
-            st.bar_chart(dist)
-
-    st.markdown('</div>', unsafe_allow_html=True)
+    c1.metric("Records", f"{len(fdf):,}")
+    c2.metric("Total", f"{int(fdf[metric_col].sum()):,}")
+    c3.metric("States", fdf["state"].nunique())
+    c4.metric("Districts", fdf["district"].nunique())
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
-# ------------------------------ Trends ------------------------------
-with TAB2:
-    st.markdown('<div class="section">', unsafe_allow_html=True)
-
-    st.subheader("📈 Trend over time")
-    trend = fdf.groupby("date", as_index=False)[metric_col].sum().sort_values("date")
-
+with tab2:
+    trend = fdf.groupby("date", as_index=False)[metric_col].sum()
     if PLOTLY_AVAILABLE:
-        line = px.line(trend, x="date", y=metric_col)
-        line.update_layout(height=420)
-        st.plotly_chart(line, use_container_width=True)
+        fig = px.line(trend, x="date", y=metric_col)
+        st.plotly_chart(fig, width="stretch")
     else:
-        st.line_chart(trend.set_index("date")[metric_col])
-
-    st.markdown("---")
-
-    st.subheader("🗓️ Month-wise heatmap (Top 15 states)")
-    heat = fdf.groupby(["state", "month"], as_index=False)[metric_col].sum()
-    active_states = (
-        fdf.groupby("state")[metric_col].sum().sort_values(ascending=False).head(15).index.tolist()
-    )
-    heat = heat[heat["state"].isin(active_states)]
-    pivot = heat.pivot_table(index="state", columns="month", values=metric_col, aggfunc="sum").fillna(0)
-
-    if PLOTLY_AVAILABLE:
-        hm = px.imshow(pivot, aspect="auto")
-        hm.update_layout(height=480, xaxis_title="Month", yaxis_title="State")
-        st.plotly_chart(hm, use_container_width=True)
-    else:
-        st.dataframe(pivot, use_container_width=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
+        st.line_chart(trend.set_index("date"))
 
 
-# ------------------------------ Data ------------------------------
-with TAB3:
-    st.markdown('<div class="section">', unsafe_allow_html=True)
-
-    st.subheader("🧾 Preview")
-    st.dataframe(fdf.head(5000), use_container_width=True)
-
-    st.markdown("---")
-    st.subheader("⬇️ Download")
-
-    csv = fdf.to_csv(index=False).encode("utf-8")
+with tab3:
+    st.dataframe(fdf.head(5000), width="stretch")
     st.download_button(
-        "Download filtered dataset as CSV",
-        data=csv,
-        file_name=f"uidai_{dataset.lower().replace(' ','_')}_filtered.csv",
+        "Download CSV",
+        fdf.to_csv(index=False),
+        file_name="uidai_filtered.csv",
         mime="text/csv",
     )
-
-    st.caption(
-        "Run with: `python -m streamlit run app_v2.py`  |  Set your folder using UIDAI_DATA_DIR env variable."
-    )
-
-    st.markdown('</div>', unsafe_allow_html=True)
