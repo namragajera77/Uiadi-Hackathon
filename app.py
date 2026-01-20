@@ -1,19 +1,6 @@
 import os
-import glob
-from datetime import datetime
-
-import numpy as np
 import pandas as pd
 import streamlit as st
-
-# Plotly
-try:
-    import plotly.express as px
-    import plotly.graph_objects as go
-    PLOTLY_AVAILABLE = True
-except Exception:
-    PLOTLY_AVAILABLE = False
-
 
 # ------------------------------ Page Config ------------------------------
 st.set_page_config(
@@ -21,7 +8,6 @@ st.set_page_config(
     page_icon="🪪",
     layout="wide",
 )
-
 
 # ------------------------------ Styling ------------------------------
 CUSTOM_CSS = """
@@ -55,10 +41,7 @@ section[data-testid="stSidebar"] * {color:#e5e7eb;}
 """
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
-
-# ------------------------------ File Discovery ------------------------------
-BASE_DIR = os.environ.get("UIDAI_DATA_DIR", "")
-
+# ------------------------------ Fixed File Names ------------------------------
 ENROLMENT_FILES = [
     "enrollment_all (1).csv",
     "enrollment_all (1)_2.csv",
@@ -75,8 +58,6 @@ BIOMETRIC_FILES = [
     "mightymerge.io__xzzeu4zp (1)_2.csv",
 ]
 
-
-
 # ------------------------------ Data Utils ------------------------------
 @st.cache_data(show_spinner=False)
 def load_concat(paths):
@@ -86,16 +67,14 @@ def load_concat(paths):
             dfs.append(pd.read_csv(p))
     return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
 
-
 def normalize_common(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
 
     df = df.copy()
 
-    # 🔑 CRITICAL FIX: normalize column names
     df.columns = (
-        df.columns
+        df.columns.astype(str)
         .str.strip()
         .str.lower()
         .str.replace(" ", "_")
@@ -122,38 +101,14 @@ def normalize_common(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-
 def add_total_column(df: pd.DataFrame, value_cols, total_name):
     df = df.copy()
-
-    # 🔒 SAFE: ensure columns exist
     for col in value_cols:
         if col not in df.columns:
             df[col] = 0
-
-    df[value_cols] = (
-        df[value_cols]
-        .apply(pd.to_numeric, errors="coerce")
-        .fillna(0)
-        .astype(int)
-    )
-
-    df[total_name] = df[value_cols].sum(axis=1)
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+    df[total_name] = df[value_cols].sum(axis=1).astype(int)
     return df
-
-
-def kpi(label, value, help_text=""):
-    st.markdown(
-        f"""
-        <div class="kpi">
-            <div class="label">{label}</div>
-            <div class="value">{value}</div>
-            {f"<div class='help'>{help_text}</div>" if help_text else ""}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
 
 # ------------------------------ Sidebar ------------------------------
 st.title("🪪 UIDAI Aadhaar Analytics Dashboard")
@@ -177,7 +132,6 @@ with st.sidebar:
         if up:
             uploaded_path = "/tmp/upload.csv"
             pd.read_csv(up).to_csv(uploaded_path, index=False)
-
 
 # ------------------------------ Load Data ------------------------------
 if dataset == "Enrolment":
@@ -221,11 +175,9 @@ else:
     )
     metric_col = "total_enrolments"
 
-
 if df.empty:
     st.error("No data loaded.")
     st.stop()
-
 
 # ------------------------------ Filters ------------------------------
 min_date, max_date = df["date"].min(), df["date"].max()
@@ -235,11 +187,9 @@ with st.sidebar:
         "Date Range",
         (min_date.date(), max_date.date()),
     )
-
     states = st.multiselect("State", sorted(df["state"].dropna().unique()))
     districts = st.multiselect("District", sorted(df["district"].dropna().unique()))
     pin = st.text_input("Pincode")
-
 
 fdf = df.copy()
 start, end = date_range
@@ -252,30 +202,21 @@ if districts:
 if pin:
     fdf = fdf[fdf["pincode"].str.contains(pin)]
 
-
 # ------------------------------ Tabs ------------------------------
 tab1, tab2, tab3 = st.tabs(["📌 Overview", "📈 Trends", "🧾 Data"])
-
 
 with tab1:
     st.markdown('<div class="section">', unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
-
     c1.metric("Records", f"{len(fdf):,}")
     c2.metric("Total", f"{int(fdf[metric_col].sum()):,}")
     c3.metric("States", fdf["state"].nunique())
     c4.metric("Districts", fdf["district"].nunique())
     st.markdown("</div>", unsafe_allow_html=True)
 
-
 with tab2:
-    trend = fdf.groupby("date", as_index=False)[metric_col].sum()
-    if PLOTLY_AVAILABLE:
-        fig = px.line(trend, x="date", y=metric_col)
-        st.plotly_chart(fig, width="stretch")
-    else:
-        st.line_chart(trend.set_index("date"))
-
+    trend = fdf.groupby("date")[metric_col].sum()
+    st.line_chart(trend)
 
 with tab3:
     st.dataframe(fdf.head(5000), width="stretch")
