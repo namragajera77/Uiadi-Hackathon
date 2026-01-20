@@ -90,7 +90,7 @@ st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 BASE_DIR = os.environ.get("UIDAI_DATA_DIR", "")
 
 DEFAULT_ENROLMENT = [
-    r"enrollment_all (1)_1.csv",
+    r"enrollment_all (1).csv",
     r"enrollment_all (1)_2.csv",
     r"enrollment_all (1)_3.csv"
 ]
